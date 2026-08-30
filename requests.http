@@ -1,0 +1,52 @@
+### Teste 1: Criar um livro
+POST http://localhost:3000/books
+Content-Type: application/json
+
+{
+  "title": "1984",
+  "author": "George Orwell",
+  "isbn": "9788535914849",
+  "publishedAt": "1949-06-08T00:00:00.000Z",
+  "pages": 328
+}
+
+### Teste 2: Listar todos os livros
+GET http://localhost:3000/books
+
+### Teste 3: Buscar um livro pelo id
+GET http://localhost:3000/books/2
+
+### Teste 4: Atualizar um livro
+PUT http://localhost:3000/books/2
+Content-Type: application/json
+
+{
+  "pages": 350
+}
+
+### Teste 5: Criar livro com ISBN repetido, deve dar erro de conflito
+POST http://localhost:3000/books
+Content-Type: application/json
+
+{
+  "title": "1984",
+  "author": "George Orwell",
+  "isbn": "9788535914849",
+  "publishedAt": "1949-06-08T00:00:00.000Z",
+  "pages": 328
+}
+
+### Teste 6: Apagar um livro
+DELETE http://localhost:3000/books/2
+
+### Teste 7: Tentar criar livro com dados inválidos
+POST http://localhost:3000/books
+Content-Type: application/json
+
+{
+  "title": "",
+  "pages": "não é um número"
+}
+
+### Teste 8: Listar livros com paginação e filtro
+GET http://localhost:3000/books?page=1&perPage=5&title=1984
