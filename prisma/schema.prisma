@@ -16,10 +16,19 @@ datasource db {
 model Book {
   id          Int      @id @default(autoincrement())
   title       String
-  author      String
   isbn        String   @unique
   publishedAt DateTime
   pages       Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+    authors     Author[]
+}
+
+model Author {
+  id        Int      @id @default(autoincrement())
+  name      String
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  books     Book[]
 }
