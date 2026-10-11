@@ -8,7 +8,7 @@ async function create(data) {
       ...bookData,
       authors: { connect: authorIds.map((id) => ({ id })) },
     },
-    include: { authors: true },
+    include: { authors: true, category: true },
   });
 }
 
@@ -23,7 +23,7 @@ async function findAll({ page, perPage, title }) {
       skip: (page - 1) * perPage,
       take: perPage,
       orderBy: { createdAt: "desc" },
-      include: { authors: true },
+      include: { authors: true, category: true },
     }),
     prisma.book.count({ where }),
   ]);
@@ -32,11 +32,17 @@ async function findAll({ page, perPage, title }) {
 }
 
 async function findById(id) {
-  return prisma.book.findUnique({ where: { id }, include: { authors: true } });
+  return prisma.book.findUnique({
+    where: { id },
+    include: { authors: true, category: true },
+  });
 }
 
 async function findByIsbn(isbn) {
-  return prisma.book.findUnique({ where: { isbn }, include: { authors: true } });
+  return prisma.book.findUnique({
+    where: { isbn },
+    include: { authors: true, category: true },
+  });
 }
 
 async function update(id, data) {
@@ -48,7 +54,7 @@ async function update(id, data) {
   return prisma.book.update({
     where: { id },
     data: { ...bookData, ...authors },
-    include: { authors: true },
+    include: { authors: true, category: true },
   });
 }
 
