@@ -19,6 +19,9 @@ model Book {
   isbn        String   @unique
   publishedAt DateTime
   pages       Int
+  priceDigital   Decimal  @db.Decimal(10, 2)
+  pricePhysical  Decimal  @db.Decimal(10, 2)
+  coverImageUrl  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
     authors     Author[]

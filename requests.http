@@ -1,52 +1,397 @@
-### Teste 1: Criar um livro
-POST http://localhost:3000/books
+# =============================================================================
+# API de Livros - Requisições para a extensão REST Client do VS Code
+# =============================================================================
+#
+# COMO USAR
+#   1. Suba a API com: npm run dev
+#   2. Abra este arquivo no VS Code. Para enviar uma requisição, use o link
+#      "Send Request" que aparece acima dela, ou posicione o cursor dentro do
+#      bloco e pressione Ctrl+Alt+R.
+#   3. Execute as seções na ordem, de 1 a 5. As requisições marcadas com
+#      "# @name" guardam a resposta, e as seguintes reaproveitam os ids
+#      automaticamente (por exemplo, createAuthorGaiman.response.body.$.id).
+#      Não é preciso copiar ids manualmente.
+#
+# OBSERVAÇÕES
+#   - Uma requisição nomeada precisa ter sido enviada ao menos uma vez antes de
+#     outra usar o id dela. Se você fechar o VS Code, envie as criações de novo.
+#   - Não reenvie as requisições de criação que têm "# @name". Reenviar uma
+#     criação duplicada (categoria com o mesmo nome ou livro com o mesmo ISBN)
+#     devolve 409 e substitui a resposta guardada, e os ids das requisições
+#     seguintes deixam de funcionar. Para testar duplicidade, use as
+#     requisições sem nome (1.8, 1.9 e 4.1).
+#   - Se isso acontecer, envie a 1.3 (listar categorias) e use o id retornado
+#     no lugar da variável, ou apague os registros e recomece pela seção 1.
+#   - As seções 5 e 6 testam as regras de exclusão: sem livros vinculados a
+#     exclusão funciona (204), com livros vinculados a API responde 409.
+#   - Preços, data de publicação e biografias são valores de exemplo.
+# =============================================================================
+
+@baseUrl = http://localhost:3000
+
+
+### ============================ 1. CATEGORIAS ============================
+
+### 1.1 Criar categoria Fantasia (usada pelo livro de exemplo)
+# @name createCategoryFantasia
+POST {{baseUrl}}/categories
 Content-Type: application/json
 
 {
-  "title": "1984",
-  "author": "George Orwell",
-  "isbn": "9788535914849",
-  "publishedAt": "1949-06-08T00:00:00.000Z",
-  "pages": 328
+  "name": "Fantasia"
 }
 
-### Teste 2: Listar todos os livros
-GET http://localhost:3000/books
-
-### Teste 3: Buscar um livro pelo id
-GET http://localhost:3000/books/2
-
-### Teste 4: Atualizar um livro
-PUT http://localhost:3000/books/2
+### 1.2 Criar categoria temporária (usada nos testes de atualização e exclusão)
+# @name createCategoryTemp
+POST {{baseUrl}}/categories
 Content-Type: application/json
 
 {
-  "pages": 350
+  "name": "Categoria Temporária"
 }
 
-### Teste 5: Criar livro com ISBN repetido, deve dar erro de conflito
-POST http://localhost:3000/books
+### 1.3 Listar todas as categorias
+GET {{baseUrl}}/categories
+
+### 1.4 Buscar a categoria Fantasia pelo id
+GET {{baseUrl}}/categories/{{createCategoryFantasia.response.body.$.id}}
+
+### 1.5 Atualizar a categoria temporária
+PUT {{baseUrl}}/categories/{{createCategoryTemp.response.body.$.id}}
 Content-Type: application/json
 
 {
-  "title": "1984",
-  "author": "George Orwell",
-  "isbn": "9788535914849",
-  "publishedAt": "1949-06-08T00:00:00.000Z",
-  "pages": 328
+  "name": "Categoria Temporária Editada"
 }
 
-### Teste 6: Apagar um livro
-DELETE http://localhost:3000/books/2
-
-### Teste 7: Tentar criar livro com dados inválidos
-POST http://localhost:3000/books
+### 1.6 Erro esperado 400: nome vazio
+POST {{baseUrl}}/categories
 Content-Type: application/json
 
 {
-  "title": "",
-  "pages": "não é um número"
+  "name": ""
 }
 
-### Teste 8: Listar livros com paginação e filtro
-GET http://localhost:3000/books?page=1&perPage=5&title=1984
+### 1.7 Erro esperado 404: categoria inexistente
+GET {{baseUrl}}/categories/999999
+
+### 1.8 Erro esperado 409: nome de categoria já existente
+POST {{baseUrl}}/categories
+Content-Type: application/json
+
+{
+  "name": "Fantasia"
+}
+
+### 1.9 Erro esperado 409: mesmo nome com maiúsculas e espaços diferentes
+POST {{baseUrl}}/categories
+Content-Type: application/json
+
+{
+  "name": "  fANTASIA  "
+}
+
+
+### ============================== 2. AUTORES ==============================
+
+### 2.1 Criar autor Neil Gaiman
+# @name createAuthorGaiman
+POST {{baseUrl}}/authors
+Content-Type: application/json
+
+{
+  "name": "Neil Gaiman",
+  "bio": "Escritor britânico, autor de romances, quadrinhos e roteiros."
+}
+
+### 2.2 Criar autor Terry Pratchett
+# @name createAuthorPratchett
+POST {{baseUrl}}/authors
+Content-Type: application/json
+
+{
+  "name": "Terry Pratchett",
+  "bio": "Escritor britânico, conhecido principalmente pela série Discworld."
+}
+
+### 2.3 Criar autor temporário (usado nos testes de atualização e exclusão)
+# @name createAuthorTemp
+POST {{baseUrl}}/authors
+Content-Type: application/json
+
+{
+  "name": "Autor Temporário"
+}
+
+### 2.4 Listar autores (paginado: page e perPage são opcionais)
+GET {{baseUrl}}/authors?page=1&perPage=10
+
+### 2.5 Buscar Neil Gaiman pelo id
+GET {{baseUrl}}/authors/{{createAuthorGaiman.response.body.$.id}}
+
+### 2.6 Atualizar o autor temporário
+PUT {{baseUrl}}/authors/{{createAuthorTemp.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "name": "Autor Temporário Editado",
+  "bio": "Biografia de teste."
+}
+
+### 2.7 Erro esperado 400: nome vazio
+POST {{baseUrl}}/authors
+Content-Type: application/json
+
+{
+  "name": ""
+}
+
+### 2.8 Erro esperado 404: autor inexistente
+GET {{baseUrl}}/authors/999999
+
+
+### ====================== 3. LIVROS (CRIAR, LER, ATUALIZAR) ======================
+
+### 3.1 Criar o livro Good Omens (2 autores, categoria, preços e capa)
+# Dados conferidos em catálogos de bibliotecas: autores Neil Gaiman e Terry
+# Pratchett, edição HarperTorch de 2006, ISBN 9780060853983, 412 páginas.
+# A capa usa a API pública de capas da Open Library, que busca a imagem pelo ISBN.
+# @name createBookGoodOmens
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Good Omens: The Nice and Accurate Prophecies of Agnes Nutter, Witch",
+  "isbn": "9780060853983",
+  "publishedAt": "2006-01-01T00:00:00.000Z",
+  "pages": 412,
+  "priceDigital": 29.9,
+  "pricePhysical": 59.9,
+  "coverImageUrl": "https://covers.openlibrary.org/b/isbn/9780060853983-L.jpg",
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}},
+    {{createAuthorPratchett.response.body.$.id}}
+  ],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 3.2 Listar todos os livros
+GET {{baseUrl}}/books
+
+### 3.3 Listar com paginação e filtro por título
+GET {{baseUrl}}/books?page=1&perPage=5&title=omens
+
+### 3.4 Buscar o livro pelo id
+GET {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+
+### 3.5 Atualizar apenas os preços (atualização parcial)
+PUT {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "priceDigital": 24.9,
+  "pricePhysical": 54.9
+}
+
+### 3.6 Remover a capa (enviando null)
+PUT {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "coverImageUrl": null
+}
+
+### 3.7 Restaurar a capa
+PUT {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "coverImageUrl": "https://covers.openlibrary.org/b/isbn/9780060853983-L.jpg"
+}
+
+### 3.8 Trocar os autores: deixar somente Neil Gaiman
+# Atenção: enviar authorIds substitui a lista inteira de autores do livro.
+PUT {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}}
+  ]
+}
+
+### 3.9 Restaurar os dois autores
+PUT {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}},
+    {{createAuthorPratchett.response.body.$.id}}
+  ]
+}
+
+
+### ===================== 4. LIVROS (CENÁRIOS DE ERRO) =====================
+
+### 4.1 Erro esperado 409: ISBN já cadastrado
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Good Omens repetido",
+  "isbn": "9780060853983",
+  "publishedAt": "2006-01-01T00:00:00.000Z",
+  "pages": 412,
+  "priceDigital": 29.9,
+  "pricePhysical": 59.9,
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}}
+  ],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 4.2 Erro esperado 400: preço digital com 3 casas decimais
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Livro de teste",
+  "isbn": "9780441003259",
+  "publishedAt": "1990-01-01T00:00:00.000Z",
+  "pages": 100,
+  "priceDigital": 29.999,
+  "pricePhysical": 59.9,
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}}
+  ],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 4.3 Erro esperado 400: preço físico negativo
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Livro de teste",
+  "isbn": "9780441003259",
+  "publishedAt": "1990-01-01T00:00:00.000Z",
+  "pages": 100,
+  "priceDigital": 29.9,
+  "pricePhysical": -5,
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}}
+  ],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 4.4 Erro esperado 400: URL de capa inválida (protocolo não permitido)
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Livro de teste",
+  "isbn": "9780441003259",
+  "publishedAt": "1990-01-01T00:00:00.000Z",
+  "pages": 100,
+  "priceDigital": 29.9,
+  "pricePhysical": 59.9,
+  "coverImageUrl": "javascript:alert(1)",
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}}
+  ],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 4.5 Erro esperado 400: lista de autores vazia
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Livro de teste",
+  "isbn": "9780441003259",
+  "publishedAt": "1990-01-01T00:00:00.000Z",
+  "pages": 100,
+  "priceDigital": 29.9,
+  "pricePhysical": 59.9,
+  "authorIds": [],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 4.6 Erro esperado 404: autor inexistente
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Livro de teste",
+  "isbn": "9780441003259",
+  "publishedAt": "1990-01-01T00:00:00.000Z",
+  "pages": 100,
+  "priceDigital": 29.9,
+  "pricePhysical": 59.9,
+  "authorIds": [999999],
+  "categoryId": {{createCategoryFantasia.response.body.$.id}}
+}
+
+### 4.7 Erro esperado 404: categoria inexistente
+POST {{baseUrl}}/books
+Content-Type: application/json
+
+{
+  "title": "Livro de teste",
+  "isbn": "9780441003259",
+  "publishedAt": "1990-01-01T00:00:00.000Z",
+  "pages": 100,
+  "priceDigital": 29.9,
+  "pricePhysical": 59.9,
+  "authorIds": [
+    {{createAuthorGaiman.response.body.$.id}}
+  ],
+  "categoryId": 999999
+}
+
+### 4.8 Erro esperado 404: livro inexistente
+GET {{baseUrl}}/books/999999
+
+
+### ================= 5. EXCLUSÃO DE REGISTROS SEM LIVROS VINCULADOS =================
+
+### 5.1 Remover o autor temporário (esperado 204)
+DELETE {{baseUrl}}/authors/{{createAuthorTemp.response.body.$.id}}
+
+### 5.2 Remover a categoria temporária (esperado 204)
+DELETE {{baseUrl}}/categories/{{createCategoryTemp.response.body.$.id}}
+
+### 5.3 Erro esperado 404: remover o autor temporário de novo
+DELETE {{baseUrl}}/authors/{{createAuthorTemp.response.body.$.id}}
+
+
+### ================== 6. PROTEÇÃO DE EXCLUSÃO (COM LIVRO VINCULADO) ==================
+# Estas requisições tentam remover registros que têm livro vinculado.
+# O resultado esperado é 409 Conflict em ambas, e nada é alterado.
+
+### 6.1 Tentar remover a categoria Fantasia (tem livro vinculado)
+# Esperado: 409 com a mensagem "Não é possível remover a categoria, pois
+# existem livros associados a ela."
+DELETE {{baseUrl}}/categories/{{createCategoryFantasia.response.body.$.id}}
+
+### 6.2 Tentar remover o autor Neil Gaiman (tem livro vinculado)
+# Esperado: 409 com a mensagem "Não é possível remover o autor, pois existem
+# livros associados a ele."
+DELETE {{baseUrl}}/authors/{{createAuthorGaiman.response.body.$.id}}
+
+
+### ============================ 7. LIMPEZA FINAL ============================
+# Ordem correta: primeiro o livro, depois autores e categoria.
+
+### 7.1 Remover o livro (esperado 204)
+DELETE {{baseUrl}}/books/{{createBookGoodOmens.response.body.$.id}}
+
+### 7.2 Remover Neil Gaiman (esperado 204)
+DELETE {{baseUrl}}/authors/{{createAuthorGaiman.response.body.$.id}}
+
+### 7.3 Remover Terry Pratchett (esperado 204)
+DELETE {{baseUrl}}/authors/{{createAuthorPratchett.response.body.$.id}}
+
+### 7.4 Remover a categoria Fantasia (esperado 204)
+DELETE {{baseUrl}}/categories/{{createCategoryFantasia.response.body.$.id}}

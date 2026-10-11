@@ -78,3 +78,76 @@ describe("CRUD de autores", () => {
     expect(resposta.body.message).toBe("Autor não encontrado.");
   });
 });
+
+describe("Proteção na exclusão de autores", () => {
+  let autorComLivro;
+  let autorSemLivro;
+  let livro;
+  let categoria;
+
+  beforeAll(async () => {
+    await prisma.book.deleteMany();
+    await prisma.author.deleteMany();
+    await prisma.category.deleteMany();
+
+    categoria = await prisma.category.create({
+      data: { name: "Categoria do teste de autor" },
+    });
+
+    autorComLivro = await prisma.author.create({
+      data: { name: "Autor com livro" },
+    });
+
+    autorSemLivro = await prisma.author.create({
+      data: { name: "Autor sem livro" },
+    });
+
+    livro = await prisma.book.create({
+      data: {
+        title: "Livro de teste",
+        isbn: "9780000000001",
+        publishedAt: new Date("2000-01-01T00:00:00.000Z"),
+        pages: 100,
+        priceDigital: 10,
+        pricePhysical: 20,
+        categoryId: categoria.id,
+        authors: { connect: [{ id: autorComLivro.id }] },
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.book.deleteMany();
+    await prisma.author.deleteMany();
+    await prisma.category.deleteMany();
+  });
+
+  test("não deve remover um autor que possui livros associados", async () => {
+    const resposta = await request(app).delete(`/authors/${autorComLivro.id}`);
+
+    expect(resposta.status).toBe(409);
+    expect(resposta.body.message).toBe(
+      "Não é possível remover o autor, pois existem livros associados a ele."
+    );
+
+    const autor = await request(app).get(`/authors/${autorComLivro.id}`);
+    expect(autor.status).toBe(200);
+
+    const livroAtual = await request(app).get(`/books/${livro.id}`);
+    expect(livroAtual.body.authors).toHaveLength(1);
+  });
+
+  test("deve remover um autor que não possui livros", async () => {
+    const resposta = await request(app).delete(`/authors/${autorSemLivro.id}`);
+
+    expect(resposta.status).toBe(204);
+  });
+
+  test("deve permitir remover o autor depois que o livro for removido", async () => {
+    await prisma.book.delete({ where: { id: livro.id } });
+
+    const resposta = await request(app).delete(`/authors/${autorComLivro.id}`);
+
+    expect(resposta.status).toBe(204);
+  });
+});

@@ -1,6 +1,6 @@
 # API de Livros
 
-API RESTful para cadastro e gerenciamento de livros, autores e categorias, construída com Node.js, Express, PostgreSQL e Prisma ORM. Desenvolvida como projeto de estudo seguindo uma arquitetura em camadas com separação de responsabilidades.
+API RESTful para cadastro e gerenciamento de livros, autores e categorias, construida com Node.js, Express, PostgreSQL e Prisma ORM. Desenvolvida como projeto de estudo seguindo uma arquitetura em camadas com separacao de responsabilidades.
 
 ---
 
@@ -15,7 +15,9 @@ API RESTful para cadastro e gerenciamento de livros, autores e categorias, const
 - [Modelo de Dados](#modelo-de-dados)
 - [Executando o Projeto](#executando-o-projeto)
 - [Documentacao Interativa](#documentacao-interativa)
+- [Arquivo de Requisicoes](#arquivo-de-requisicoes)
 - [Endpoints da API](#endpoints-da-api)
+- [Regras de Negocio](#regras-de-negocio)
 - [Arquitetura do Projeto](#arquitetura-do-projeto)
 - [Testes](#testes)
 - [Scripts Disponiveis](#scripts-disponiveis)
@@ -25,16 +27,20 @@ API RESTful para cadastro e gerenciamento de livros, autores e categorias, const
 
 ## Visao Geral
 
-A API permite realizar operacoes completas de CRUD (Create, Read, Update, Delete) sobre um catalogo de livros, autores e categorias. Um livro possui titulo, ISBN unico, data de publicacao, numero de paginas, um ou mais autores e uma categoria.
+A API permite realizar operacoes completas de CRUD (Create, Read, Update, Delete) sobre um catalogo de livros, autores e categorias. Um livro possui titulo, ISBN unico, data de publicacao, numero de paginas, preco digital, preco fisico, URL de capa (opcional), um ou mais autores e uma categoria.
 
 Recursos da API:
 
 - CRUD completo de Livros, Autores e Categorias
 - Relacionamento muitos-para-muitos entre Livro e Autor (um livro pode ter varios autores)
 - Relacionamento muitos-para-um entre Livro e Categoria (um livro pertence a uma categoria, uma categoria tem varios livros)
-- Listagem paginada de livros com filtro por titulo
+- Preco do livro em dois formatos (digital e fisico), com validacao de valor e de casas decimais
+- URL da imagem de capa, restrita aos protocolos http e https
+- Listagem paginada de livros (com filtro por titulo) e de autores
 - Validacao de entrada com mensagens de erro descritivas
 - Conflito de ISBN detectado e retornado como erro `409 Conflict`
+- Nome de categoria unico, sem diferenciar maiusculas, minusculas e espacos nas pontas
+- Protecao de integridade: autor ou categoria com livros associados nao podem ser removidos (`409 Conflict`)
 - Validacao de existencia de autores e categoria antes de associar a um livro
 - Tratamento centralizado de erros, sem exposicao de detalhes internos
 - Documentacao interativa via Swagger UI
@@ -112,7 +118,7 @@ DATABASE_URL="postgresql://postgres:minhasenha@localhost:5432/api_livros"
 
 ### Ambiente de Testes
 
-Para executar os testes, crie um arquivo `.env.test` separado, apontando para um banco de dados **diferente** do principal. O nome do banco de testes deve conter o sufixo `_test`; o projeto recusa a execucao dos testes caso a `DATABASE_URL` carregada nao contenha esse sufixo, como proteção contra a execucao acidental dos testes contra o banco principal.
+Para executar os testes, crie um arquivo `.env.test` separado, apontando para um banco de dados **diferente** do principal. O nome do banco de testes deve conter o sufixo `_test`; o projeto recusa a execucao dos testes caso a `DATABASE_URL` carregada nao contenha esse sufixo, como protecao contra a execucao acidental dos testes contra o banco principal.
 
 ```env
 DATABASE_URL="postgresql://postgres:minhasenha@localhost:5432/api_livros_test"
@@ -156,17 +162,22 @@ O primeiro comando cria e aplica a migration no banco principal. O segundo aplic
 
 ### Book
 
-| Campo         | Tipo        | Descricao                                      |
-|---------------|-------------|-------------------------------------------------|
-| `id`          | Int (PK)    | Identificador unico, auto-incremento            |
-| `title`       | String      | Titulo do livro                                 |
-| `isbn`        | String      | ISBN unico do livro                             |
-| `publishedAt` | DateTime    | Data de publicacao                              |
-| `pages`       | Int         | Numero de paginas                               |
-| `categoryId`  | Int (FK)    | Referencia a categoria do livro                 |
-| `authors`     | Author[]    | Lista de autores associados (muitos-para-muitos)|
-| `createdAt`   | DateTime    | Data de criacao do registro                     |
-| `updatedAt`   | DateTime    | Data da ultima atualizacao                      |
+| Campo           | Tipo            | Descricao                                          |
+|-----------------|-----------------|-----------------------------------------------------|
+| `id`            | Int (PK)        | Identificador unico, auto-incremento                |
+| `title`         | String          | Titulo do livro                                     |
+| `isbn`          | String          | ISBN unico do livro                                 |
+| `publishedAt`   | DateTime        | Data de publicacao                                  |
+| `pages`         | Int             | Numero de paginas                                   |
+| `priceDigital`  | Decimal(10, 2)  | Preco da versao digital (obrigatorio)               |
+| `pricePhysical` | Decimal(10, 2)  | Preco da versao fisica (obrigatorio)                |
+| `coverImageUrl` | String?         | URL da imagem de capa, http ou https (opcional)     |
+| `categoryId`    | Int (FK)        | Referencia a categoria do livro                     |
+| `authors`       | Author[]        | Lista de autores associados (muitos-para-muitos)    |
+| `createdAt`     | DateTime        | Data de criacao do registro                         |
+| `updatedAt`     | DateTime        | Data da ultima atualizacao                          |
+
+> **Nota sobre os precos:** o tipo `Decimal` e serializado como **texto** no JSON de resposta (por exemplo, `"29.90"`), para nao perder precisao. Na entrada, os precos sao enviados como numero (por exemplo, `29.9`).
 
 ### Author
 
@@ -230,6 +241,14 @@ A interface permite visualizar e testar todos os endpoints de Livros, Autores e 
 
 ---
 
+## Arquivo de Requisicoes
+
+O arquivo `requests.http`, na raiz do projeto, reune requisicoes prontas para a extensao [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) do VS Code, cobrindo categorias, autores e livros, incluindo os cenarios de erro e de protecao de exclusao.
+
+As requisicoes marcadas com `# @name` guardam a resposta, e as seguintes reaproveitam os ids automaticamente, sem copiar nada manualmente. Execute as secoes na ordem e nao reenvie as requisicoes de criacao nomeadas: reenviar uma criacao duplicada devolve `409` e substitui a resposta guardada, o que quebra os ids usados pelas requisicoes seguintes.
+
+---
+
 ## Endpoints da API
 
 Base URL: `http://localhost:3000`
@@ -246,23 +265,23 @@ Base URL: `http://localhost:3000`
 
 ### Autores
 
-| Metodo   | Rota            | Descricao                        |
-|----------|-----------------|------------------------------------|
-| `POST`   | `/authors`      | Cria um novo autor                |
-| `GET`    | `/authors`      | Lista todos os autores            |
-| `GET`    | `/authors/:id`  | Busca um autor pelo ID            |
-| `PUT`    | `/authors/:id`  | Atualiza um autor existente       |
-| `DELETE` | `/authors/:id`  | Remove um autor                   |
+| Metodo   | Rota            | Descricao                             |
+|----------|-----------------|-----------------------------------------|
+| `POST`   | `/authors`      | Cria um novo autor                     |
+| `GET`    | `/authors`      | Lista os autores (paginado)            |
+| `GET`    | `/authors/:id`  | Busca um autor pelo ID                 |
+| `PUT`    | `/authors/:id`  | Atualiza um autor existente            |
+| `DELETE` | `/authors/:id`  | Remove um autor sem livros associados  |
 
 ### Categorias
 
-| Metodo   | Rota              | Descricao                        |
-|----------|-------------------|------------------------------------|
-| `POST`   | `/categories`     | Cria uma nova categoria           |
-| `GET`    | `/categories`     | Lista todas as categorias         |
-| `GET`    | `/categories/:id` | Busca uma categoria pelo ID       |
-| `PUT`    | `/categories/:id` | Atualiza uma categoria existente  |
-| `DELETE` | `/categories/:id` | Remove uma categoria              |
+| Metodo   | Rota              | Descricao                                    |
+|----------|-------------------|------------------------------------------------|
+| `POST`   | `/categories`     | Cria uma nova categoria                       |
+| `GET`    | `/categories`     | Lista todas as categorias                     |
+| `GET`    | `/categories/:id` | Busca uma categoria pelo ID                   |
+| `PUT`    | `/categories/:id` | Atualiza uma categoria existente              |
+| `DELETE` | `/categories/:id` | Remove uma categoria sem livros associados    |
 
 ---
 
@@ -279,11 +298,19 @@ Cria um novo livro. Os autores e a categoria devem ja existir previamente (criad
   "categoryId": 1,
   "isbn": "9788525406958",
   "publishedAt": "1899-01-01T00:00:00.000Z",
-  "pages": 256
+  "pages": 256,
+  "priceDigital": 29.9,
+  "pricePhysical": 49.9,
+  "coverImageUrl": "https://exemplo.com/capa.jpg"
 }
 ```
 
-**Campos obrigatorios:** `title`, `isbn`, `publishedAt`, `pages`, `authorIds` (lista com ao menos um ID), `categoryId`
+**Campos obrigatorios:** `title`, `isbn`, `publishedAt`, `pages`, `priceDigital`, `pricePhysical`, `authorIds` (lista com ao menos um ID), `categoryId`. O campo `coverImageUrl` e opcional.
+
+**Regras de validacao dos novos campos:**
+
+- `priceDigital` e `pricePhysical`: numero maior ou igual a zero, com no maximo 2 casas decimais e valor maximo de `99999999.99`.
+- `coverImageUrl`: deve comecar com `http://` ou `https://`; pode ser omitido ou enviado como `null`. Outros protocolos (por exemplo `javascript:`) sao recusados.
 
 **Respostas:**
 
@@ -321,6 +348,9 @@ Lista todos os livros com suporte a paginacao e filtro por titulo. Cada livro re
       "isbn": "9788525406958",
       "publishedAt": "1899-01-01T00:00:00.000Z",
       "pages": 256,
+      "priceDigital": "29.9",
+      "pricePhysical": "49.9",
+      "coverImageUrl": "https://exemplo.com/capa.jpg",
       "authors": [
         { "id": 1, "name": "Machado de Assis", "bio": null }
       ],
@@ -355,13 +385,14 @@ Busca um livro especifico pelo seu ID, com autores e categoria inclusos.
 
 ### PUT /books/:id
 
-Atualiza parcialmente ou totalmente um livro existente. Todos os campos sao opcionais. Ao enviar `authorIds`, a lista de autores do livro e **substituida** integralmente pela nova lista enviada.
+Atualiza parcialmente ou totalmente um livro existente. Todos os campos sao opcionais. Ao enviar `authorIds`, a lista de autores do livro e **substituida** integralmente pela nova lista enviada. Para remover a capa, envie `"coverImageUrl": null`.
 
-**Corpo da requisicao (JSON) — exemplo de atualizacao parcial:**
+**Corpo da requisicao (JSON) - exemplo de atualizacao parcial:**
 
 ```json
 {
   "pages": 300,
+  "priceDigital": 24.9,
   "authorIds": [2]
 }
 ```
@@ -414,11 +445,31 @@ Cria um novo autor.
 
 ---
 
-### GET /authors e GET /authors/:id
+### GET /authors
 
-Lista todos os autores, ou busca um autor especifico pelo ID.
+Lista os autores com paginacao, do mais recente para o mais antigo.
 
-**Respostas (`GET /authors/:id`):**
+**Parametros de query (opcionais):**
+
+| Parametro | Tipo   | Padrao | Descricao                          |
+|-----------|--------|--------|--------------------------------------|
+| `page`    | Number | `1`    | Numero da pagina                     |
+| `perPage` | Number | `10`   | Quantidade de registros por pagina   |
+
+**Resposta `200`:**
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "Machado de Assis", "bio": null }
+  ],
+  "meta": { "page": 1, "perPage": 10, "total": 1, "totalPages": 1 }
+}
+```
+
+### GET /authors/:id
+
+Busca um autor especifico pelo ID.
 
 | Status | Descricao             |
 |--------|-------------------------|
@@ -427,9 +478,25 @@ Lista todos os autores, ou busca um autor especifico pelo ID.
 
 ---
 
-### PUT /authors/:id e DELETE /authors/:id
+### PUT /authors/:id
 
-Atualiza ou remove um autor existente. Seguem o mesmo padrao de respostas (`200`/`400`/`404` para atualizacao; `204`/`404` para remocao) descrito nos livros.
+Atualiza um autor existente. Todos os campos sao opcionais.
+
+| Status | Descricao                 |
+|--------|-----------------------------|
+| `200`  | Autor atualizado            |
+| `400`  | Dados invalidos             |
+| `404`  | Autor nao encontrado        |
+
+### DELETE /authors/:id
+
+Remove um autor. A remocao e **recusada** se o autor tiver livros associados.
+
+| Status | Descricao                                                    |
+|--------|----------------------------------------------------------------|
+| `204`  | Autor removido                                                 |
+| `404`  | Autor nao encontrado                                           |
+| `409`  | Autor possui livros associados e nao pode ser removido         |
 
 ---
 
@@ -445,14 +512,15 @@ Cria uma nova categoria.
 }
 ```
 
-**Campos obrigatorios:** `name` (deve ser unico).
+**Campos obrigatorios:** `name`. O nome e unico: a comparacao ignora maiusculas, minusculas e espacos no comeco e no fim (`"Romance"`, `"romance"` e `"  ROMANCE "` contam como o mesmo nome).
 
 **Respostas:**
 
-| Status | Descricao                        |
-|--------|-------------------------------------|
-| `201`  | Categoria criada com sucesso        |
-| `400`  | Dados invalidos                     |
+| Status | Descricao                                |
+|--------|---------------------------------------------|
+| `201`  | Categoria criada com sucesso                |
+| `400`  | Dados invalidos (nome vazio ou so espacos)  |
+| `409`  | Ja existe uma categoria com esse nome       |
 
 ---
 
@@ -469,11 +537,44 @@ Lista todas as categorias, ou busca uma categoria especifica pelo ID.
 
 ---
 
-### PUT /categories/:id e DELETE /categories/:id
+### PUT /categories/:id
 
-Atualiza ou remove uma categoria existente. Seguem o mesmo padrao de respostas descrito nos livros e autores.
+Atualiza uma categoria existente. Enviar o proprio nome atual e permitido; enviar o nome de **outra** categoria e recusado.
 
-> **Nota:** a remocao de uma categoria que ainda possui livros associados nao possui, no momento, um tratamento de erro amigavel especifico (ver [Proximos Passos](#proximos-passos)).
+| Status | Descricao                                |
+|--------|---------------------------------------------|
+| `200`  | Categoria atualizada                        |
+| `400`  | Dados invalidos                             |
+| `404`  | Categoria nao encontrada                    |
+| `409`  | Ja existe outra categoria com esse nome     |
+
+### DELETE /categories/:id
+
+Remove uma categoria. A remocao e **recusada** se a categoria tiver livros associados.
+
+| Status | Descricao                                                         |
+|--------|---------------------------------------------------------------------|
+| `204`  | Categoria removida                                                  |
+| `404`  | Categoria nao encontrada                                            |
+| `409`  | Categoria possui livros associados e nao pode ser removida          |
+
+---
+
+## Regras de Negocio
+
+Resumo das regras aplicadas na camada de servico e das respostas de erro correspondentes:
+
+| Regra                                                                 | Resposta |
+|-----------------------------------------------------------------------|----------|
+| ISBN de livro deve ser unico (na criacao e na atualizacao)            | `409`    |
+| Todos os autores informados em `authorIds` devem existir              | `404`    |
+| A categoria informada em `categoryId` deve existir                    | `404`    |
+| Nome de categoria deve ser unico (sem diferenciar caixa e espacos)    | `409`    |
+| Autor com livros associados nao pode ser removido                     | `409`    |
+| Categoria com livros associados nao pode ser removida                 | `409`    |
+| Registro inexistente em consulta, atualizacao ou remocao              | `404`    |
+| Dados de entrada invalidos                                            | `400`    |
+| Erro inesperado (sem detalhes internos na resposta)                   | `500`    |
 
 ---
 
@@ -498,8 +599,8 @@ src/
 │   └── category.controller.js   # Recebe requisicoes HTTP e envia respostas (categorias)
 ├── services/
 │   ├── book.service.js          # Regras de negocio de livros (ISBN duplicado, existencia de autores/categoria)
-│   ├── author.service.js        # Regras de negocio de autores
-│   └── category.service.js      # Regras de negocio de categorias
+│   ├── author.service.js        # Regras de negocio de autores (protecao de exclusao)
+│   └── category.service.js      # Regras de negocio de categorias (nome unico, protecao de exclusao)
 ├── repositories/
 │   ├── book.repository.js       # Acesso ao banco de dados de livros via Prisma
 │   ├── author.repository.js     # Acesso ao banco de dados de autores via Prisma
@@ -512,7 +613,7 @@ src/
 │   ├── validate.js              # Middleware de validacao com Zod
 │   └── error-handler.js         # Tratamento centralizado de erros
 ├── validations/
-│   ├── book.validation.js       # Schemas de validacao Zod de livros
+│   ├── book.validation.js       # Schemas de validacao Zod de livros (precos, URL da capa)
 │   ├── author.validation.js     # Schemas de validacao Zod de autores
 │   └── category.validation.js   # Schemas de validacao Zod de categorias
 └── utils/
@@ -530,9 +631,9 @@ Requisicao HTTP
      |
   Controller (controllers/)
      |
-  Service — regras de negocio (services/)
+  Service - regras de negocio (services/)
      |
-  Repository — acesso a dados (repositories/)
+  Repository - acesso a dados (repositories/)
      |
   Banco de dados (PostgreSQL via Prisma)
 ```
@@ -543,32 +644,37 @@ Erros lancados em qualquer camada com `AppError` sao capturados pelo middleware 
 
 ## Testes
 
-Os testes de integracao cobrem o ciclo completo de cada endpoint dos tres modulos, incluindo cenarios de sucesso e de erro.
+Os testes de integracao cobrem o ciclo completo de cada endpoint dos tres modulos, incluindo cenarios de sucesso e de erro. A suite atual tem **57 testes** (30 de livros, 16 de categorias e 11 de autores).
 
 Cenarios testados em `book.test.js`:
 
-- Criar um livro com dados validos, incluindo autores e categoria
+- Criar um livro com dois autores, precos e capa
+- Criar um livro sem capa
 - Rejeitar criacao com ISBN duplicado (`409`)
-- Rejeitar criacao com autor inexistente (`404`)
-- Rejeitar criacao com categoria inexistente (`404`)
+- Rejeitar criacao com autor ou categoria inexistente (`404`)
 - Rejeitar criacao com dados invalidos (`400`)
-- Listar livros com paginacao
-- Buscar livro por ID
-- Retornar `404` para livro inexistente
-- Atualizar um livro existente, incluindo troca de autores
-- Remover um livro existente
-- Retornar `404` ao tentar remover livro ja removido
+- Rejeitar precos com 3 casas decimais, negativos, acima do maximo ou ausentes (`400`)
+- Rejeitar URL de capa com protocolo nao permitido ou sem protocolo (`400`)
+- Listar livros, filtrar por titulo e paginar
+- Buscar livro por ID e retornar `404` para livro inexistente
+- Atualizar precos, remover e trocar a capa, substituir a lista de autores
+- Rejeitar atualizacao com preco invalido, ISBN de outro livro, categoria ou autor inexistente
+- Permitir atualizar mantendo o proprio ISBN
+- Remover um livro e retornar `404` ao remover de novo
 
-Cenarios testados em `author.test.js` e `category.test.js` (identicos entre si, adaptados aos respectivos campos):
+Cenarios testados em `author.test.js`:
 
-- Criar com dados validos
-- Rejeitar criacao com dados invalidos (`400`)
-- Listar registros cadastrados
-- Buscar por ID
-- Retornar `404` para registro inexistente
-- Atualizar um registro existente
-- Remover um registro existente
-- Retornar `404` ao tentar remover registro ja removido
+- CRUD completo, incluindo listagem paginada e erros `400` e `404`
+- Recusar a remocao de autor com livros associados (`409`), verificando que o autor e o vinculo com o livro permanecem
+- Remover autor sem livros e autor cujo livro foi removido antes
+
+Cenarios testados em `category.test.js`:
+
+- CRUD completo, incluindo erros `400` e `404`
+- Recusar nome duplicado, inclusive variando maiusculas e espacos (`409`), na criacao e na atualizacao
+- Permitir atualizar mantendo o mesmo nome
+- Recusar a remocao de categoria com livros associados (`409`), verificando que a categoria e o livro permanecem
+- Remover categoria sem livros e categoria cujo livro foi removido antes
 
 ### Executar os testes:
 
@@ -576,7 +682,9 @@ Cenarios testados em `author.test.js` e `category.test.js` (identicos entre si, 
 npm test
 ```
 
-Os testes utilizam o banco definido em `.env.test` e limpam todos os registros das tabelas envolvidas antes e depois da execucao, para garantir isolamento entre as execucoes. Antes de rodar os testes por primeira vez, certifique-se de que o banco de testes esta com as migrations sincronizadas (`npm run migrate:test`).
+Para rodar apenas alguns arquivos: `npm test -- author category`.
+
+Os testes utilizam o banco definido em `.env.test` e limpam todos os registros das tabelas envolvidas antes e depois da execucao, para garantir isolamento entre as execucoes. Antes de rodar os testes por primeira vez, certifique-se de que o banco de testes esta com as migrations sincronizadas (`npm run migrate:test`). Alguns testes dependem da ordem em que aparecem no arquivo (por exemplo, a listagem espera uma quantidade exata de livros), entao evite reordena-los.
 
 ---
 
@@ -595,10 +703,15 @@ Os testes utilizam o banco definido em `.env.test` e limpam todos os registros d
 
 Melhorias planejadas para versoes futuras do projeto:
 
+- Filtros na listagem de livros por autor, categoria, ano de publicacao e faixa de preco, para suportar a pesquisa do futuro front-end
+- Validacao do parametro `:id` das rotas (hoje, um id nao numerico como `/books/abc` resulta em `500`; o ideal e responder `400`)
 - Autenticacao e autorizacao com JWT, protegendo rotas de escrita
-- Tratamento de erro amigavel (`409`) ao tentar remover uma categoria com livros associados
-- Filtro de listagem de livros por categoria e por autor
+- Restringir `CORS_ORIGIN` ao dominio do front-end quando ele existir
 - Containerizacao com Docker (incluindo `docker-compose.yml` com PostgreSQL)
 - Deploy em servico com banco PostgreSQL gerenciado (Render, Railway ou Fly.io)
 - Rate limiting para proteger a API contra excesso de requisicoes
 - Logs estruturados em producao com `pino` ou `winston`
+
+### Limitacao conhecida
+
+As protecoes de exclusao (autor e categoria com livros) sao verificadas na camada de servico, antes da remocao. Em uso concorrente muito intenso, um livro poderia ser vinculado entre a verificacao e a remocao. Para a categoria, o proprio banco ainda recusa a remocao por causa da chave estrangeira. Para o autor, uma garantia absoluta no banco exigiria tornar a tabela de ligacao explicita, com `onDelete: Restrict`.
