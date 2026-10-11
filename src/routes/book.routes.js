@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import bookController from "../controllers/book.controller.js";
 import validate from "../middlewares/validate.js";
 import { createBookSchema, updateBookSchema } from "../validations/book.validation.js";
@@ -9,6 +9,36 @@ const router = Router();
  * @openapi
  * components:
  *   schemas:
+ *     Erro:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: Registro não encontrado.
+ *     ErroValidacao:
+ *       type: object
+ *       properties:
+ *         errors:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example:
+ *             - O título é obrigatório.
+ *     PaginacaoMeta:
+ *       type: object
+ *       properties:
+ *         page:
+ *           type: integer
+ *           example: 1
+ *         perPage:
+ *           type: integer
+ *           example: 10
+ *         total:
+ *           type: integer
+ *           example: 23
+ *         totalPages:
+ *           type: integer
+ *           example: 3
  *     Book:
  *       type: object
  *       properties:
@@ -23,6 +53,18 @@ const router = Router();
  *           format: date-time
  *         pages:
  *           type: integer
+ *         priceDigital:
+ *           type: string
+ *           description: Preço da versão digital, devolvido como texto decimal
+ *           example: "29.90"
+ *         pricePhysical:
+ *           type: string
+ *           description: Preço da versão física, devolvido como texto decimal
+ *           example: "59.90"
+ *         coverImageUrl:
+ *           type: string
+ *           nullable: true
+ *           description: URL da imagem de capa (http ou https)
  *         authors:
  *           type: array
  *           items:
@@ -35,6 +77,15 @@ const router = Router();
  *         updatedAt:
  *           type: string
  *           format: date-time
+ *     LivrosPaginados:
+ *       type: object
+ *       properties:
+ *         data:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Book'
+ *         meta:
+ *           $ref: '#/components/schemas/PaginacaoMeta'
  *     NovoLivro:
  *       type: object
  *       required:
@@ -42,8 +93,52 @@ const router = Router();
  *         - isbn
  *         - publishedAt
  *         - pages
+ *         - priceDigital
+ *         - pricePhysical
  *         - authorIds
  *         - categoryId
+ *       properties:
+ *         title:
+ *           type: string
+ *           example: Dom Casmurro
+ *         isbn:
+ *           type: string
+ *           description: ISBN único, com pelo menos 10 caracteres
+ *           example: "9788525406958"
+ *         publishedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "1899-01-01T00:00:00.000Z"
+ *         pages:
+ *           type: integer
+ *           example: 256
+ *         priceDigital:
+ *           type: number
+ *           description: Preço digital, de 0 a 99999999.99, com no máximo 2 casas decimais
+ *           example: 29.9
+ *         pricePhysical:
+ *           type: number
+ *           description: Preço físico, de 0 a 99999999.99, com no máximo 2 casas decimais
+ *           example: 49.9
+ *         coverImageUrl:
+ *           type: string
+ *           nullable: true
+ *           description: URL da capa, deve começar com http ou https (opcional)
+ *           example: https://exemplo.com/capa.jpg
+ *         authorIds:
+ *           type: array
+ *           minItems: 1
+ *           description: Ids de autores já cadastrados (ao menos um)
+ *           items:
+ *             type: integer
+ *           example: [1, 2]
+ *         categoryId:
+ *           type: integer
+ *           description: Id de uma categoria já cadastrada
+ *           example: 1
+ *     AtualizarLivro:
+ *       type: object
+ *       description: Todos os campos são opcionais. Envie apenas o que deseja alterar.
  *       properties:
  *         title:
  *           type: string
@@ -54,11 +149,22 @@ const router = Router();
  *           format: date-time
  *         pages:
  *           type: integer
+ *         priceDigital:
+ *           type: number
+ *           example: 24.9
+ *         pricePhysical:
+ *           type: number
+ *           example: 54.9
+ *         coverImageUrl:
+ *           type: string
+ *           nullable: true
+ *           description: Envie null para remover a capa
  *         authorIds:
  *           type: array
+ *           minItems: 1
+ *           description: Substitui a lista inteira de autores do livro
  *           items:
  *             type: integer
- *           minItems: 1
  *         categoryId:
  *           type: integer
  */
@@ -68,6 +174,7 @@ const router = Router();
  * /books:
  *   post:
  *     summary: Cria um novo livro
+ *     description: Os autores e a categoria devem existir previamente e são informados pelos ids.
  *     tags: [Livros]
  *     requestBody:
  *       required: true
@@ -84,10 +191,22 @@ const router = Router();
  *               $ref: '#/components/schemas/Book'
  *       400:
  *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErroValidacao'
  *       404:
- *         description: Autor ou categoria informados não foram encontrados
+ *         description: Um ou mais autores, ou a categoria, não foram encontrados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  *       409:
  *         description: ISBN já cadastrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.post("/", validate(createBookSchema), bookController.create);
 
@@ -95,24 +214,33 @@ router.post("/", validate(createBookSchema), bookController.create);
  * @openapi
  * /books:
  *   get:
- *     summary: Lista todos os livros (com paginação e filtro por título)
+ *     summary: Lista os livros com paginação e filtro por título
  *     tags: [Livros]
  *     parameters:
  *       - in: query
  *         name: page
+ *         description: Número da página
  *         schema:
  *           type: integer
+ *           default: 1
  *       - in: query
  *         name: perPage
+ *         description: Quantidade de registros por página
  *         schema:
  *           type: integer
+ *           default: 10
  *       - in: query
  *         name: title
+ *         description: Filtro parcial por título, sem diferenciar maiúsculas e minúsculas
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Lista paginada de livros
+ *         description: Lista paginada de livros, com autores e categoria
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LivrosPaginados'
  */
 router.get("/", bookController.list);
 
@@ -137,6 +265,10 @@ router.get("/", bookController.list);
  *               $ref: '#/components/schemas/Book'
  *       404:
  *         description: Livro não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.get("/:id", bookController.getById);
 
@@ -145,6 +277,7 @@ router.get("/:id", bookController.getById);
  * /books/{id}:
  *   put:
  *     summary: Atualiza um livro existente
+ *     description: Atualização parcial. Ao enviar authorIds, a lista de autores do livro é substituída por completo.
  *     tags: [Livros]
  *     parameters:
  *       - in: path
@@ -157,7 +290,7 @@ router.get("/:id", bookController.getById);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/NovoLivro'
+ *             $ref: '#/components/schemas/AtualizarLivro'
  *     responses:
  *       200:
  *         description: Livro atualizado
@@ -165,10 +298,24 @@ router.get("/:id", bookController.getById);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Book'
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErroValidacao'
  *       404:
  *         description: Livro, autor ou categoria não encontrados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  *       409:
  *         description: ISBN já pertence a outro livro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.put("/:id", validate(updateBookSchema), bookController.update);
 
@@ -189,6 +336,10 @@ router.put("/:id", validate(updateBookSchema), bookController.update);
  *         description: Livro removido com sucesso
  *       404:
  *         description: Livro não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Erro'
  */
 router.delete("/:id", bookController.remove);
 

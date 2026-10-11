@@ -25,6 +25,15 @@ async function findManyByIds(ids) {
   return prisma.author.findMany({ where: { id: { in: ids } } });
 }
 
+async function countBooks(id) {
+  const autor = await prisma.author.findUnique({
+    where: { id },
+    select: { _count: { select: { books: true } } },
+  });
+
+  return autor ? autor._count.books : 0;
+}
+
 async function update(id, data) {
   return prisma.author.update({ where: { id }, data });
 }
@@ -33,4 +42,12 @@ async function remove(id) {
   return prisma.author.delete({ where: { id } });
 }
 
-export default { create, findAll, findById, findManyByIds, update, remove };
+export default {
+  create,
+  findAll,
+  findById,
+  findManyByIds,
+  countBooks,
+  update,
+  remove,
+};

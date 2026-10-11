@@ -31,7 +31,23 @@ async function updateAuthor(id, dados) {
 
 async function deleteAuthor(id) {
   await getAuthorById(id);
+
+  const totalDeLivros = await authorRepository.countBooks(id);
+
+  if (totalDeLivros > 0) {
+    throw new AppError(
+      "Não é possível remover o autor, pois existem livros associados a ele.",
+      409
+    );
+  }
+
   return authorRepository.remove(id);
 }
 
-export default { createAuthor, listAuthors, getAuthorById, updateAuthor, deleteAuthor };
+export default {
+  createAuthor,
+  listAuthors,
+  getAuthorById,
+  updateAuthor,
+  deleteAuthor,
+};
