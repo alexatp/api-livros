@@ -27,6 +27,8 @@ const router = Router();
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/Author'
+ *         category:
+ *           $ref: '#/components/schemas/Category'
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -37,23 +39,27 @@ const router = Router();
  *       type: object
  *       required:
  *         - title
- *         - authorIds
  *         - isbn
  *         - publishedAt
  *         - pages
+ *         - authorIds
+ *         - categoryId
  *       properties:
  *         title:
  *           type: string
- *         authorIds:
- *           type: array
- *           items:
- *             type: integer
  *         isbn:
  *           type: string
  *         publishedAt:
  *           type: string
  *           format: date-time
  *         pages:
+ *           type: integer
+ *         authorIds:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           minItems: 1
+ *         categoryId:
  *           type: integer
  */
 
@@ -72,10 +78,14 @@ const router = Router();
  *     responses:
  *       201:
  *         description: Livro criado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
  *       400:
  *         description: Dados inválidos
  *       404:
- *         description: Autor não encontrado
+ *         description: Autor ou categoria informados não foram encontrados
  *       409:
  *         description: ISBN já cadastrado
  */
@@ -85,11 +95,24 @@ router.post("/", validate(createBookSchema), bookController.create);
  * @openapi
  * /books:
  *   get:
- *     summary: Lista todos os livros
+ *     summary: Lista todos os livros (com paginação e filtro por título)
  *     tags: [Livros]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: title
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: Lista de livros
+ *         description: Lista paginada de livros
  */
 router.get("/", bookController.list);
 
@@ -108,6 +131,10 @@ router.get("/", bookController.list);
  *     responses:
  *       200:
  *         description: Livro encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
  *       404:
  *         description: Livro não encontrado
  */
@@ -134,8 +161,12 @@ router.get("/:id", bookController.getById);
  *     responses:
  *       200:
  *         description: Livro atualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
  *       404:
- *         description: Livro ou autor não encontrado
+ *         description: Livro, autor ou categoria não encontrados
  *       409:
  *         description: ISBN já pertence a outro livro
  */

@@ -1,10 +1,4 @@
-﻿import dotenv from "dotenv";
-
-dotenv.config({
-  path: process.env.NODE_ENV === "test" ? ".env.test" : ".env",
-});
-
-import express from "express";
+﻿import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -12,6 +6,7 @@ import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
 import bookRoutes from "./routes/book.routes.js";
 import authorRoutes from "./routes/author.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
 import errorHandler from "./middlewares/error-handler.js";
 
 const app = express();
@@ -25,6 +20,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/books", bookRoutes);
 app.use("/authors", authorRoutes);
+app.use("/categories", categoryRoutes);
 
 app.use(errorHandler);
 

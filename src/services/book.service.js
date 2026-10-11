@@ -1,5 +1,6 @@
 ﻿import bookRepository from "../repositories/book.repository.js";
 import authorRepository from "../repositories/author.repository.js";
+import categoryRepository from "../repositories/category.repository.js";
 import AppError from "../utils/app-error.js";
 
 async function validateAuthorIds(authorIds) {
@@ -7,6 +8,14 @@ async function validateAuthorIds(authorIds) {
 
   if (autores.length < new Set(authorIds).size) {
     throw new AppError("Um ou mais autores informados não foram encontrados.", 404);
+  }
+}
+
+async function validateCategoryId(categoryId) {
+  const categoria = await categoryRepository.findById(categoryId);
+
+  if (!categoria) {
+    throw new AppError("Categoria informada não foi encontrada.", 404);
   }
 }
 
@@ -18,6 +27,8 @@ async function createBook(dados) {
   }
 
   await validateAuthorIds(dados.authorIds);
+  await validateCategoryId(dados.categoryId);
+
   return bookRepository.create(dados);
 }
 
@@ -53,6 +64,10 @@ async function updateBook(id, dados) {
 
   if (dados.authorIds) {
     await validateAuthorIds(dados.authorIds);
+  }
+
+  if (dados.categoryId) {
+    await validateCategoryId(dados.categoryId);
   }
 
   return bookRepository.update(id, dados);
